@@ -49,13 +49,20 @@ func (p *MACPayload) decodeFRMPayloadToMACCommands(uplink bool) error {
 		return fmt.Errorf("lorawan: expected *DataPayload, got %T", p.FRMPayload[0])
 	}
 
-	var pLen int
 	p.FRMPayload = make([]Payload, 0)
 	for i := 0; i < len(dataPL.Bytes); i++ {
-		if _, s, err := getMACPayloadAndSize(uplink, CID(dataPL.Bytes[i])); err != nil {
-			pLen = 0
-		} else {
-			pLen = s
+		_, pLen, err := getMACPayloadAndSize(uplink, CID(dataPL.Bytes[i]))
+		if err != nil {
+			if KeepUnknownMACCommandRemainder {
+				umr := UnknownMACCommandRemainder(dataPL.Bytes[i+1:])
+				p.FRMPayload = append(p.FRMPayload, &MACCommand{
+					CID:     CID(dataPL.Bytes[i]),
+					Payload: &umr,
+				})
+			} else {
+				log.Printf("warning: unmarshal mac-command error (skipping remaining mac-command bytes): %s", err)
+			}
+			break
 		}
 
 		// check if the remaining bytes are >= CID byte + payload size
@@ -65,8 +72,7 @@ func (p *MACPayload) decodeFRMPayloadToMACCommands(uplink bool) error {
 
 		mc := &MACCommand{}
 		if err := mc.UnmarshalBinary(uplink, dataPL.Bytes[i:i+1+pLen]); err != nil {
-			log.Printf("warning: unmarshal mac-command error (skipping remaining mac-command bytes): %s", err)
-			break
+			return err
 		}
 		p.FRMPayload = append(p.FRMPayload, mc)
 

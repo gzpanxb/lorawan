@@ -11,7 +11,9 @@ import (
 
 func TestMACPayload(t *testing.T) {
 	Convey("Given an empty MACPayload", t, func() {
+		KeepUnknownMACCommandRemainder = false
 		var p MACPayload
+
 		Convey("Then MarshalBinary returns []byte{0, 0, 0, 0, 0, 0, 0}", func() {
 			b, err := p.MarshalBinary()
 			So(err, ShouldBeNil)
@@ -180,7 +182,31 @@ func TestMACPayload(t *testing.T) {
 					So(pl.Margin, ShouldEqual, 20)
 				})
 				Convey("Then a warning was printed", func() {
-					So(logBytes.String(), ShouldEndWith, "warning: unmarshal mac-command error (skipping remaining mac-command bytes): lorawan: invalid CID 4e\n")
+					So(logBytes.String(), ShouldEndWith, "warning: unmarshal mac-command error (skipping remaining mac-command bytes): lorawan: invalid CID=4e for uplink=true\n")
+				})
+			})
+
+			Convey("Given KeepUnknownMACCommandRemainder=true", func() {
+				KeepUnknownMACCommandRemainder = true
+
+				Convey("Then UnmarshalBinary does not return an error", func() {
+					err := p.UnmarshalBinary(true, b)
+					So(err, ShouldBeNil)
+
+					// mac commands are normally unmarshaled when decrypting
+					So(p.decodeFRMPayloadToMACCommands(true), ShouldBeNil)
+
+					Convey("Then len(FRMPayload)=2", func() {
+						So(p.FRMPayload, ShouldHaveLength, 2)
+					})
+
+					Convey("Then the second FRMPayload mac-command contains the UnknownMACCommandRemainder", func() {
+						pl := UnknownMACCommandRemainder{79}
+						So(p.FRMPayload[1], ShouldResemble, &MACCommand{
+							CID:     CID(78),
+							Payload: &pl,
+						})
+					})
 				})
 			})
 		})

@@ -181,23 +181,29 @@ func (h *FHDR) UnmarshalBinary(uplink bool, data []byte) error {
 	h.FCnt = binary.LittleEndian.Uint32(fCntBytes)
 
 	if len(data) > 7 {
-		var pLen int
-		for i := 0; i < len(data[7:]); i++ {
-			if _, s, err := getMACPayloadAndSize(uplink, CID(data[7+i])); err != nil {
-				pLen = 0
-			} else {
-				pLen = s
+		for i := 7; i < len(data); i++ {
+			_, pLen, err := getMACPayloadAndSize(uplink, CID(data[i]))
+			if err != nil {
+				if KeepUnknownMACCommandRemainder {
+					umr := UnknownMACCommandRemainder(data[i+1:])
+					h.FOpts = append(h.FOpts, MACCommand{
+						CID:     CID(data[i]),
+						Payload: &umr,
+					})
+				} else {
+					log.Printf("warning: unmarshal mac-command error (skipping remaining mac-command bytes): %s", err)
+				}
+				break
 			}
 
 			// check if the remaining bytes are >= CID byte + payload size
-			if len(data[7+i:]) < pLen+1 {
+			if len(data[i+1:]) < pLen {
 				return errors.New("lorawan: not enough remaining bytes")
 			}
 
 			mc := MACCommand{}
-			if err := mc.UnmarshalBinary(uplink, data[7+i:7+i+1+pLen]); err != nil {
-				log.Printf("warning: unmarshal mac-command error (skipping remaining mac-command bytes): %s", err)
-				break
+			if err := mc.UnmarshalBinary(uplink, data[i:i+1+pLen]); err != nil {
+				return err
 			}
 			h.FOpts = append(h.FOpts, mc)
 

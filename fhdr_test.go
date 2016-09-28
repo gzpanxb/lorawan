@@ -129,7 +129,9 @@ func TestFCtrl(t *testing.T) {
 
 func TestFHDR(t *testing.T) {
 	Convey("Given an empty FHDR", t, func() {
+		KeepUnknownMACCommandRemainder = false
 		var h FHDR
+
 		Convey("Then MarshalBinary returns []byte{0, 0, 0, 0, 0, 0, 0}", func() {
 			b, err := h.MarshalBinary()
 			So(err, ShouldBeNil)
@@ -242,7 +244,28 @@ func TestFHDR(t *testing.T) {
 				})
 
 				Convey("Then a warning was printed", func() {
-					So(logBytes.String(), ShouldEndWith, "warning: unmarshal mac-command error (skipping remaining mac-command bytes): lorawan: invalid CID 4e\n")
+					So(logBytes.String(), ShouldEndWith, "warning: unmarshal mac-command error (skipping remaining mac-command bytes): lorawan: invalid CID=4e for uplink=false\n")
+				})
+			})
+
+			Convey("Given KeepUnknownMACCommandRemainder=true", func() {
+				KeepUnknownMACCommandRemainder = true
+
+				Convey("Then UnmarshalBinary does not return an error", func() {
+					err := h.UnmarshalBinary(false, b)
+					So(err, ShouldBeNil)
+
+					Convey("Then len(Fopts)=2", func() {
+						So(h.FOpts, ShouldHaveLength, 2)
+					})
+
+					Convey("Then the second MACCommand contains the UnknownMACCommandRemainder", func() {
+						pl := UnknownMACCommandRemainder{79}
+						So(h.FOpts[1], ShouldResemble, MACCommand{
+							CID:     CID(78),
+							Payload: &pl,
+						})
+					})
 				})
 			})
 		})

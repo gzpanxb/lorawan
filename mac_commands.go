@@ -7,6 +7,18 @@ import (
 	"sync"
 )
 
+// KeepUnknownMACCommandRemainder controlls if the remaining MACCommand bytes
+// must be preserved in case of an unmarshal error. In case this is set to
+// true, these bytes are kept in UnkownMACCommandRemainder.
+// This means that when for example an unknown mac-command CID=128 with payload
+// []byte{1, 2, 3} and a mac-command CID=129 with bytes []byte{4, 5} was
+// received, this will result in:
+// 	MACCommand{
+// 		CID:     CID(128),
+// 		Payload: &UnknownMACCommandRemainder{1, 2, 3, 129, 4, 5},
+// 	}
+var KeepUnknownMACCommandRemainder bool
+
 // macPayloadMutex is used when registering proprietary MAC command payloads to
 // the macPayloadRegistry.
 var macPayloadMutex sync.RWMutex
@@ -43,22 +55,24 @@ type macPayloadInfo struct {
 
 // macPayloadRegistry contains the info for uplink and downlink MAC payloads
 // in the format map[uplink]map[CID].
-// Note that MAC command that do not have a payload are not included in this
-// list.
 var macPayloadRegistry = map[bool]map[CID]macPayloadInfo{
 	false: map[CID]macPayloadInfo{
 		LinkCheckAns:     {2, func() MACCommandPayload { return &LinkCheckAnsPayload{} }},
 		LinkADRReq:       {4, func() MACCommandPayload { return &LinkADRReqPayload{} }},
 		DutyCycleReq:     {1, func() MACCommandPayload { return &DutyCycleReqPayload{} }},
 		RXParamSetupReq:  {4, func() MACCommandPayload { return &RX2SetupReqPayload{} }},
+		DevStatusReq:     {0, func() MACCommandPayload { return nil }},
 		NewChannelReq:    {5, func() MACCommandPayload { return &NewChannelReqPayload{} }},
 		RXTimingSetupReq: {1, func() MACCommandPayload { return &RXTimingSetupReqPayload{} }},
 	},
 	true: map[CID]macPayloadInfo{
-		LinkADRAns:      {1, func() MACCommandPayload { return &LinkADRAnsPayload{} }},
-		RXParamSetupAns: {1, func() MACCommandPayload { return &RX2SetupAnsPayload{} }},
-		DevStatusAns:    {2, func() MACCommandPayload { return &DevStatusAnsPayload{} }},
-		NewChannelAns:   {1, func() MACCommandPayload { return &NewChannelAnsPayload{} }},
+		LinkCheckReq:     {0, func() MACCommandPayload { return nil }},
+		LinkADRAns:       {1, func() MACCommandPayload { return &LinkADRAnsPayload{} }},
+		DutyCycleAns:     {0, func() MACCommandPayload { return nil }},
+		RXParamSetupAns:  {1, func() MACCommandPayload { return &RX2SetupAnsPayload{} }},
+		DevStatusAns:     {2, func() MACCommandPayload { return &DevStatusAnsPayload{} }},
+		RXTimingSetupAns: {0, func() MACCommandPayload { return nil }},
+		NewChannelAns:    {1, func() MACCommandPayload { return &NewChannelAnsPayload{} }},
 	},
 }
 
@@ -69,22 +83,16 @@ func getMACPayloadAndSize(uplink bool, c CID) (MACCommandPayload, int, error) {
 
 	v, ok := macPayloadRegistry[uplink][c]
 	if !ok {
-		return nil, 0, fmt.Errorf("lorawan: payload unknown for uplink=%v and CID=%v", uplink, c)
+		return nil, 0, fmt.Errorf("lorawan: invalid CID=%x for uplink=%t", c, uplink)
 	}
 
 	return v.payload(), v.size, nil
 }
 
-// RegisterProprietaryMACCommand registers a proprietary MAC command. Note
-// that there is no need to call this when the size of the payload is > 0 bytes.
+// RegisterProprietaryMACCommand registers a proprietary MAC command.
 func RegisterProprietaryMACCommand(uplink bool, cid CID, payloadSize int) error {
 	if !(cid >= 128 && cid <= 255) {
 		return fmt.Errorf("lorawan: invalid CID %x", cid)
-	}
-
-	if payloadSize == 0 {
-		// no need to register the payload size
-		return nil
 	}
 
 	macPayloadMutex.Lock()
@@ -144,6 +152,11 @@ func (m *MACCommand) UnmarshalBinary(uplink bool, data []byte) error {
 		if err != nil {
 			return err
 		}
+
+		if p == nil {
+			return fmt.Errorf("lorawan: expected MACCommandPayload, got nil (uplink: %t, CID: %x)", uplink, m.CID)
+		}
+
 		m.Payload = p
 		if err := m.Payload.UnmarshalBinary(data[1:]); err != nil {
 			return err
@@ -165,6 +178,22 @@ func (p ProprietaryMACCommandPayload) MarshalBinary() ([]byte, error) {
 // UnmarshalBinary decodes the object from a slice of bytes.
 func (p *ProprietaryMACCommandPayload) UnmarshalBinary(data []byte) error {
 	p.Bytes = data
+	return nil
+}
+
+// UnknownMACCommandRemainder represents the remaining MACCommand bytes that
+// were not recognised as a valid MACCommand(s). See also the
+// KeepUnknownMACCommandRemainder flag.
+type UnknownMACCommandRemainder []byte
+
+// MarshalBinary marshals the object into a slice of bytes.
+func (u UnknownMACCommandRemainder) MarshalBinary() ([]byte, error) {
+	return []byte(u), nil
+}
+
+// UnmarshalBinary decodes the object from a slice of bytes.
+func (u *UnknownMACCommandRemainder) UnmarshalBinary(data []byte) error {
+	*u = UnknownMACCommandRemainder(data)
 	return nil
 }
 
