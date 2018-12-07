@@ -6,13 +6,13 @@ import (
 	"github.com/brocaar/lorawan"
 )
 
-type eu443Band struct {
+type ru864Band struct {
 	band
 }
 
-func (b *eu443Band) GetDefaults() Defaults {
+func (b *ru864Band) GetDefaults() Defaults {
 	return Defaults{
-		RX2Frequency:     434665000,
+		RX2Frequency:     869100000,
 		RX2DataRate:      0,
 		MaxFCntGap:       16384,
 		ReceiveDelay1:    time.Second,
@@ -22,24 +22,24 @@ func (b *eu443Band) GetDefaults() Defaults {
 	}
 }
 
-func (b *eu443Band) GetDownlinkTXPower(freq int) int {
-	return 10
+func (b *ru864Band) GetDownlinkTXPower(freq int) int {
+	return 14
 }
 
-func (b *eu443Band) GetPingSlotFrequency(lorawan.DevAddr, time.Duration) (int, error) {
-	return 434665000, nil
+func (b *ru864Band) GetPingSlotFrequency(lorawan.DevAddr, time.Duration) (int, error) {
+	return 868900000, nil
 }
 
-func (b *eu443Band) GetRX1ChannelIndexForUplinkChannelIndex(uplinkChannel int) (int, error) {
+func (b *ru864Band) GetRX1ChannelIndexForUplinkChannelIndex(uplinkChannel int) (int, error) {
 	return uplinkChannel, nil
 }
 
-func (b *eu443Band) GetRX1FrequencyForUplinkFrequency(uplinkFrequency int) (int, error) {
+func (b *ru864Band) GetRX1FrequencyForUplinkFrequency(uplinkFrequency int) (int, error) {
 	return uplinkFrequency, nil
 }
 
-func newEU433Band(repeaterCompatible bool) (Band, error) {
-	b := eu443Band{
+func newRU864Band(repeaterCompatible bool) (Band, error) {
+	b := ru864Band{
 		band: band{
 			supportsExtraChannels: true,
 			dataRates: map[int]DataRate{
@@ -69,17 +69,17 @@ func newEU433Band(repeaterCompatible bool) (Band, error) {
 				-6,
 				-8,
 				-10,
+				-12,
+				-14,
 			},
 			uplinkChannels: []Channel{
-				{Frequency: 433175000, MinDR: 0, MaxDR: 5, enabled: true},
-				{Frequency: 433375000, MinDR: 0, MaxDR: 5, enabled: true},
-				{Frequency: 433575000, MinDR: 0, MaxDR: 5, enabled: true},
+				{Frequency: 868900000, MinDR: 0, MaxDR: 5, enabled: true},
+				{Frequency: 869100000, MinDR: 0, MaxDR: 5, enabled: true},
 			},
 
 			downlinkChannels: []Channel{
-				{Frequency: 433175000, MinDR: 0, MaxDR: 5, enabled: true},
-				{Frequency: 433375000, MinDR: 0, MaxDR: 5, enabled: true},
-				{Frequency: 433575000, MinDR: 0, MaxDR: 5, enabled: true},
+				{Frequency: 868900000, MinDR: 0, MaxDR: 5, enabled: true},
+				{Frequency: 869100000, MinDR: 0, MaxDR: 5, enabled: true},
 			},
 		},
 	}
@@ -87,7 +87,7 @@ func newEU433Band(repeaterCompatible bool) (Band, error) {
 	if repeaterCompatible {
 		b.band.maxPayloadSizePerDR = map[string]map[string]map[int]MaxPayloadSize{
 			latest: map[string]map[int]MaxPayloadSize{
-				latest: map[int]MaxPayloadSize{ // LoRaWAN 1.0.0, 1.0.1, 1.0.2B, 1.1.0A, 1.1.0B
+				latest: map[int]MaxPayloadSize{ // LoRaWAN 1.1.0B
 					0: {M: 59, N: 51},
 					1: {M: 59, N: 51},
 					2: {M: 59, N: 51},
@@ -102,7 +102,7 @@ func newEU433Band(repeaterCompatible bool) (Band, error) {
 	} else {
 		b.band.maxPayloadSizePerDR = map[string]map[string]map[int]MaxPayloadSize{
 			latest: map[string]map[int]MaxPayloadSize{
-				latest: map[int]MaxPayloadSize{ // LoRaWAN 1.0.0, 1.0.1, 1.0.2B, 1.1.0A, 1.1.0B
+				latest: map[int]MaxPayloadSize{ // LoRaWAN 1.1.0B
 					0: {M: 59, N: 51},
 					1: {M: 59, N: 51},
 					2: {M: 59, N: 51},

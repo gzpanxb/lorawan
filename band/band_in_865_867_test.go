@@ -8,15 +8,15 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 )
 
-func TestEU433Band(t *testing.T) {
-	Convey("Given the EU 433 band is selected with repeaterCompatible=true", t, func() {
-		band, err := GetConfig(EU_433, true, lorawan.DwellTimeNoLimit)
+func TestIN865Band(t *testing.T) {
+	Convey("Given the IN 865 band is selected with repeaterCompatible=true", t, func() {
+		band, err := GetConfig(IN_865_867, true, lorawan.DwellTimeNoLimit)
 		So(err, ShouldBeNil)
 
 		Convey("Then GetDefaults returns the expected value", func() {
 			So(band.GetDefaults(), ShouldResemble, Defaults{
-				RX2Frequency:     434665000,
-				RX2DataRate:      0,
+				RX2Frequency:     866550000,
+				RX2DataRate:      2,
 				MaxFCntGap:       16384,
 				ReceiveDelay1:    time.Second,
 				ReceiveDelay2:    time.Second * 2,
@@ -26,25 +26,25 @@ func TestEU433Band(t *testing.T) {
 		})
 
 		Convey("Then GetDownlinkTXPower returns the expected value", func() {
-			So(band.GetDownlinkTXPower(0), ShouldEqual, 10)
+			So(band.GetDownlinkTXPower(0), ShouldEqual, 27)
 		})
 
-		Convey("Then GetPingSlotFrequency returns the expected value", func() {
+		Convey("Then GetPingSlotFrequency returns the exepected value", func() {
 			f, err := band.GetPingSlotFrequency(lorawan.DevAddr{}, 0)
 			So(err, ShouldBeNil)
-			So(f, ShouldEqual, 434665000)
+			So(f, ShouldEqual, 866550000)
 		})
 
-		Convey("Then GetRX1ChannelIndexForUplinkChannelIndex returns the exepcted value", func() {
-			c, err := band.GetRX1ChannelIndexForUplinkChannelIndex(3)
+		Convey("Then GetRX1ChannelIndexForUplinkChannelIndex returns the expected value", func() {
+			c, err := band.GetRX1ChannelIndexForUplinkChannelIndex(2)
 			So(err, ShouldBeNil)
-			So(c, ShouldEqual, 3)
+			So(c, ShouldEqual, 2)
 		})
 
-		Convey("Then GetRX1FrequencyForUplinkFrequency returns the expected value", func() {
-			f, err := band.GetRX1FrequencyForUplinkFrequency(433175000)
+		Convey("Then RX1FrequencyForUplinkFrequency returns the expected value", func() {
+			f, err := band.GetRX1FrequencyForUplinkFrequency(866550000)
 			So(err, ShouldBeNil)
-			So(f, ShouldEqual, 433175000)
+			So(f, ShouldEqual, 866550000)
 		})
 
 		Convey("Then the max payload size (N) is 222 for DR4", func() {
@@ -54,8 +54,8 @@ func TestEU433Band(t *testing.T) {
 		})
 	})
 
-	Convey("Given the EU 433 band is selected with repeaterCompatible=false", t, func() {
-		band, err := GetConfig(EU_433, false, lorawan.DwellTimeNoLimit)
+	Convey("Given the IN 865 band is selected with repeaterCompatible=false", t, func() {
+		band, err := GetConfig(IN_865_867, false, lorawan.DwellTimeNoLimit)
 		So(err, ShouldBeNil)
 
 		Convey("Then the max payload size (N) is 242 for DR4", func() {

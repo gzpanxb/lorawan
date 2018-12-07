@@ -9,14 +9,14 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 )
 
-func TestEU863Band(t *testing.T) {
-	Convey("Given the EU 863-870 band is selected", t, func() {
-		band, err := GetConfig(EU_863_870, true, lorawan.DwellTimeNoLimit)
+func TestRU864Band(t *testing.T) {
+	Convey("Given the RU 864-869 band is selected", t, func() {
+		band, err := GetConfig(RU_864_870, true, lorawan.DwellTimeNoLimit)
 		So(err, ShouldBeNil)
 
 		Convey("Then GetDefaults returns the expected value", func() {
 			So(band.GetDefaults(), ShouldResemble, Defaults{
-				RX2Frequency:     869525000,
+				RX2Frequency:     869100000,
 				RX2DataRate:      0,
 				MaxFCntGap:       16384,
 				ReceiveDelay1:    time.Second,
@@ -33,7 +33,7 @@ func TestEU863Band(t *testing.T) {
 		Convey("Then GetPingSlotFrequency returns the expected value", func() {
 			f, err := band.GetPingSlotFrequency(lorawan.DevAddr{}, 0)
 			So(err, ShouldBeNil)
-			So(f, ShouldEqual, 869525000)
+			So(f, ShouldEqual, 868900000)
 		})
 
 		Convey("Then GetRX1ChannelIndexForUplinkChannelIndex returns the expected value", func() {
@@ -43,18 +43,18 @@ func TestEU863Band(t *testing.T) {
 		})
 
 		Convey("Then GetRX1FrequencyForUplinkFrequency returns the expected value", func() {
-			f, err := band.GetRX1FrequencyForUplinkFrequency(868500000)
+			f, err := band.GetRX1FrequencyForUplinkFrequency(868900000)
 			So(err, ShouldBeNil)
-			So(f, ShouldEqual, 868500000)
+			So(f, ShouldEqual, 868900000)
 		})
 
 		Convey("Given five extra channels", func() {
 			chans := []int{
-				867100000,
-				867300000,
-				867500000,
-				867700000,
-				867900000,
+				864100000,
+				864300000,
+				864500000,
+				864700000,
+				864900000,
 			}
 
 			for _, c := range chans {
@@ -62,7 +62,7 @@ func TestEU863Band(t *testing.T) {
 			}
 
 			Convey("Then these are returned as custom channels", func() {
-				So(band.GetCustomUplinkChannelIndices(), ShouldResemble, []int{3, 4, 5, 6, 7})
+				So(band.GetCustomUplinkChannelIndices(), ShouldResemble, []int{2, 3, 4, 5, 6})
 			})
 
 			Convey("When testing the LinkADRReqPayload functions", func() {
@@ -76,42 +76,42 @@ func TestEU863Band(t *testing.T) {
 					{
 						Name:                   "no active node channels",
 						NodeChannels:           []int{},
-						ExpectedUplinkChannels: []int{0, 1, 2},
+						ExpectedUplinkChannels: []int{0, 1},
 						ExpectedLinkADRReqPayloads: []lorawan.LinkADRReqPayload{
 							{
-								ChMask: lorawan.ChMask{true, true, true},
+								ChMask: lorawan.ChMask{true, true},
 							},
 						},
 						// we only activate the base channels
 					},
 					{
 						Name:                   "base channels are active",
-						NodeChannels:           []int{0, 1, 2},
-						ExpectedUplinkChannels: []int{0, 1, 2},
+						NodeChannels:           []int{0, 1},
+						ExpectedUplinkChannels: []int{0, 1},
 						// we do not activate the CFList channels as we don't
 						// now if the node knows about these frequencies
 					},
 					{
 						Name:                   "base channels + two CFList channels are active",
-						NodeChannels:           []int{0, 1, 2, 3, 4},
-						ExpectedUplinkChannels: []int{0, 1, 2, 3, 4},
+						NodeChannels:           []int{0, 1, 2, 3},
+						ExpectedUplinkChannels: []int{0, 1, 2, 3},
 						// we do not activate the CFList channels as we don't
 						// now if the node knows about these frequencies
 					},
 					{
 						Name:                   "base channels + CFList are active",
-						NodeChannels:           []int{0, 1, 2, 3, 4, 5, 6, 7},
-						ExpectedUplinkChannels: []int{0, 1, 2, 3, 4, 5, 6, 7},
+						NodeChannels:           []int{0, 1, 2, 3, 4, 5, 6},
+						ExpectedUplinkChannels: []int{0, 1, 2, 3, 4, 5, 6},
 						// nothing to do, network and node are in sync
 					},
 					{
 						Name:                   "base channels + CFList are active on node, but CFList channels are disabled on the network",
-						NodeChannels:           []int{0, 1, 2, 3, 4, 5, 6, 7},
-						DisabledChannels:       []int{3, 4, 5, 6, 7},
-						ExpectedUplinkChannels: []int{0, 1, 2},
+						NodeChannels:           []int{0, 1, 2, 3, 4, 5, 6},
+						DisabledChannels:       []int{2, 3, 4, 5, 6},
+						ExpectedUplinkChannels: []int{0, 1},
 						ExpectedLinkADRReqPayloads: []lorawan.LinkADRReqPayload{
 							{
-								ChMask: lorawan.ChMask{true, true, true},
+								ChMask: lorawan.ChMask{true, true},
 							},
 						},
 						// we disable the CFList channels as they became inactive
@@ -134,21 +134,20 @@ func TestEU863Band(t *testing.T) {
 
 			})
 
-			Convey("Then GetUplinkChannelFrequency takes the extra channels into consideration", func() {
+			Convey("Then GetChannel takes the extra channels into consideration", func() {
 				tests := []int{
-					868100000,
-					868300000,
-					868500000,
-					867100000,
-					867300000,
-					867500000,
-					867700000,
-					867900000,
+					868900000,
+					869100000,
+					864100000,
+					864300000,
+					864500000,
+					864700000,
+					864900000,
 				}
 
 				for expChannel, expFreq := range tests {
 					var defaultChannel bool
-					if expChannel < 3 {
+					if expChannel < 2 {
 						defaultChannel = true
 					}
 					channel, err := band.GetUplinkChannelIndex(expFreq, defaultChannel)
@@ -164,11 +163,11 @@ func TestEU863Band(t *testing.T) {
 					CFListType: lorawan.CFListChannel,
 					Payload: &lorawan.CFListChannelPayload{
 						Channels: [5]uint32{
-							867100000,
-							867300000,
-							867500000,
-							867700000,
-							867900000,
+							864100000,
+							864300000,
+							864500000,
+							864700000,
+							864900000,
 						},
 					},
 				})
